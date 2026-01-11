@@ -87,63 +87,63 @@ python scripts/evaluate.py \
 │                    DATA GENERATION                              │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  NIfTI Files (image.nii + image_label.nii)                     │
+│  NIfTI Files (image.nii + image_label.nii)                      │
 │       │                                                         │
 │       ▼                                                         │
-│  1. Load mask volume                                           │
-│  2. Extract bounding box (normalized 0-1)                      │
-│  3. Apply CT windowing to image                                │
-│  4. Resize to 128×128×128                                      │
+│  1. Load mask volume                                            │
+│  2. Extract bounding box (normalized 0-1)                       │
+│  3. Apply CT windowing to image                                 │
+│  4. Resize to 128×128×128                                       │
 │       │                                                         │
 │       ▼                                                         │
-│  NPZ Files                                                     │
-│    - 'image': (128,128,128) uint8                              │
-│    - 'label': (6,) float32 [z1,y1,x1,z2,y2,x2]                │
-│    - 'original_shape': metadata                                │
+│  NPZ Files                                                      │
+│    - 'image': (128,128,128) uint8                               │
+│    - 'label': (6,) float32 [z1,y1,x1,z2,y2,x2]                  │
+│    - 'original_shape': metadata                                 │
 │                                                                 │
 ├─────────────────────────────────────────────────────────────────┤
 │                       TRAINING                                  │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  LocalizationDataset                                           │
-│    - Load NPZ files                                            │
-│    - Normalize image to [0,1]                                  │
-│    - Return (image, bbox) tensors                              │
+│  LocalizationDataset                                            │
+│    - Load NPZ files                                             │
+│    - Normalize image to [0,1]                                   │
+│    - Return (image, bbox) tensors                               │
 │       │                                                         │
 │       ▼                                                         │
-│  BBoxRegressor3D                                               │
-│    - 5 Conv3d blocks with BatchNorm + MaxPool                  │
-│    - FC layers with Dropout                                    │
-│    - Sigmoid output → [0,1] normalized coordinates             │
+│  BBoxRegressor3D                                                │
+│    - 5 Conv3d blocks with BatchNorm + MaxPool                   │
+│    - FC layers with Dropout                                     │
+│    - Sigmoid output → [0,1] normalized coordinates              │
 │       │                                                         │
 │       ▼                                                         │
-│  SmoothL1Loss                                                  │
-│    - Robust to outliers                                        │
-│    - Good for coordinate regression                            │
+│  SmoothL1Loss                                                   │
+│    - Robust to outliers                                         │
+│    - Good for coordinate regression                             │
 │       │                                                         │
 │       ▼                                                         │
-│  Outputs:                                                      │
-│    - best_model.pth (best IoU checkpoint)                      │
-│    - training_log.csv (metrics per epoch)                      │
-│    - training_curves.png                                       │
-│    - snapshots/epoch_XXX.png                                   │
+│  Outputs:                                                       │
+│    - best_model.pth (best IoU checkpoint)                       │
+│    - training_log.csv (metrics per epoch)                       │
+│    - training_curves.png                                        │
+│    - snapshots/epoch_XXX.png                                    │
 │                                                                 │
 ├─────────────────────────────────────────────────────────────────┤
 │                       INFERENCE                                 │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  Input Volume → Preprocess → Model → Denormalize → Output      │
+│  Input Volume → Preprocess → Model → Denormalize → Output       │
 │                                                                 │
-│  Normalized bbox [0,1] → Absolute pixel coordinates            │
+│  Normalized bbox [0,1] → Absolute pixel coordinates             │
 │                                                                 │
 ├─────────────────────────────────────────────────────────────────┤
 │                      EVALUATION                                 │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  Metrics computed:                                             │
-│    - IoU (Intersection over Union)                             │
-│    - Center error (Euclidean distance)                         │
-│    - Size error (dimension differences)                        │
+│  Metrics computed:                                              │
+│    - IoU (Intersection over Union)                              │
+│    - Center error (Euclidean distance)                          │
+│    - Size error (dimension differences)                         │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -653,3 +653,4 @@ bounding_box_pipeline/
 ## License
 
 This code is provided for research and educational purposes.
+
