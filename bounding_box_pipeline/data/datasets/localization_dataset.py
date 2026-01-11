@@ -1,0 +1,171 @@
+"""
+PyTorch dataset for bounding box localization.
+
+Loads NPZ files containing image-bbox pairs for training.
+"""
+
+import logging
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple, Union
+
+import numpy as np
+import torch
+from torch.utils.data import Dataset
+
+logger = logging.getLogger(__name__)
+
+
+class LocalizationDataset(Dataset):
+    """
+    PyTorch Dataset for 3D bounding box localization.
+
+    Loads NPZ files containing:
+    - 'image': 3D volume (D, H, W) uint8
+    - 'label': Normalized bbox coordinates (6,) float32
+    """
+
+    def __init__(
+        self,
+        file_paths: List[Path],
+        normalize_image: bool = True,
+        image_key: str = "image",
+        label_key: str = "label",
+    ) -> None:
+        """
+        Initialize dataset.
+
+        Args:
+            file_paths: List of paths to NPZ files.
+            normalize_image: Whether to normalize image to [0, 1].
+            image_key: Key for image array in NPZ file.
+            label_key: Key for label array in NPZ file.
+        """
+        self.files = [Path(p) for p in file_paths]
+        self.normalize_image = normalize_image
+        self.image_key = image_key
+        self.label_key = label_key
+
+        # Validate files exist
+        for f in self.files:
+            if not f.exists():
+                logger.warning(f"File not found: {f}")
+
+    def __len__(self) -> int:
+        """Return number of samples."""
+        return len(self.files)
+
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Get a sample by index.
+
+        Args:
+            idx: Sample index.
+
+        Returns:
+            Tuple of (image_tensor, label_tensor).
+            - image_tensor: Shape (1, D, H, W) float32
+            - label_tensor: Shape (6,) float32 normalized bbox
+        """
+        try:
+            data = np.load(self.files[idx])
+            image = data[self.image_key]
+            label = data[self.label_key]
+        except Exception as e:
+            logger.error(f"Error loading {self.files[idx]}: {e}")
+            raise e
+
+        # Convert to float
+        image = image.astype(np.float32)
+        label = label.astype(np.float32)
+
+        # Normalize image to [0, 1]
+        if self.normalize_image and image.max() > 1:
+            image = image / 255.0
+
+        # Convert to tensor with channel dimension
+        image_tensor = torch.from_numpy(image).unsqueeze(0)  # (1, D, H, W)
+        label_tensor = torch.from_numpy(label)  # (6,)
+
+        return image_tensor, label_tensor
+
+    def get_sample_info(self, idx: int) -> Dict:
+        """
+        Get metadata about a sample without full loading.
+
+        Args:
+            idx: Sample index.
+
+        Returns:
+            Dictionary with file path and shape info.
+        """
+        path = self.files[idx]
+        data = np.load(path)
+
+        info = {
+            "path": str(path),
+            "filename": path.name,
+            "image_shape": data[self.image_key].shape,
+            "label_shape": data[self.label_key].shape,
+            "label_values": data[self.label_key].tolist(),
+        }
+
+        if "original_shape" in data:
+            info["original_shape"] = data["original_shape"].tolist()
+
+        return info
+
+
+def create_data_splits(
+    file_paths: List[Path],
+    train_ratio: float = 0.8,
+    val_ratio: float = 0.2,
+    seed: int = 42,
+) -> Tuple[List[Path], List[Path]]:
+    """
+    Split file paths into train/val sets.
+
+    Args:
+        file_paths: List of all file paths.
+        train_ratio: Fraction for training.
+        val_ratio: Fraction for validation.
+        seed: Random seed for reproducibility.
+
+    Returns:
+        Tuple of (train_files, val_files).
+    """
+    assert abs(train_ratio + val_ratio - 1.0) < 1e-6
+
+    # Shuffle with seed
+    rng = np.random.default_rng(seed)
+    indices = np.arange(len(file_paths))
+    rng.shuffle(indices)
+
+    # Calculate split point
+    n = len(file_paths)
+    train_end = int(n * train_ratio)
+
+    train_indices = indices[:train_end]
+    val_indices = indices[train_end:]
+
+    train_files = [file_paths[i] for i in train_indices]
+    val_files = [file_paths[i] for i in val_indices]
+
+    return train_files, val_files
+
+
+def get_dataset_files(
+    data_dir: Union[str, Path],
+    pattern: str = "*.npz",
+) -> List[Path]:
+    """
+    Get list of dataset files from directory.
+
+    Args:
+        data_dir: Directory containing NPZ files.
+        pattern: Glob pattern.
+
+    Returns:
+        Sorted list of file paths.
+    """
+    data_dir = Path(data_dir)
+    return sorted(data_dir.glob(pattern))
