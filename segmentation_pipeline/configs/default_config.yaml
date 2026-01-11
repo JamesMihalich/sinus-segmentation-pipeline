@@ -1,0 +1,72 @@
+# Segmentation Pipeline - Default Configuration
+# Copy this file and modify for your experiments
+
+# Paths (use environment variables or absolute paths)
+data_root: null  # Set to your NPZ data directory
+output_root: ./results
+checkpoint_path: null  # Set for inference/fine-tuning
+
+# Model Configuration
+model:
+  architecture: ResidualUnetSE3D
+  in_channels: 1
+  out_channels: 1
+  base_channels: 16
+  skip_mode: additive  # 'concat' or 'additive'
+  se_reduction_ratio: 8
+
+# Training Hyperparameters
+training:
+  patch_size: [224, 224, 256]
+  batch_size: 1
+  learning_rate: 0.0001
+  weight_decay: 0.0001
+  epochs: 100
+  num_workers: 4
+
+  # Optimizer
+  optimizer: AdamW
+  gradient_clip_norm: 1.0
+
+  # Scheduler
+  scheduler: ReduceLROnPlateau
+  scheduler_factor: 0.5
+  scheduler_patience: 3
+  scheduler_min_lr: 0.000001
+
+  # Loss weights
+  bce_weight: 0.5
+  dice_weight: 0.5
+
+  # Data split
+  train_ratio: 0.75
+  val_ratio: 0.15
+  test_ratio: 0.10
+  split_seed: 42
+
+# Augmentation Settings
+augmentation:
+  flip_prob: 0.5
+  rotate_prob: 0.4
+  rotate_range: [-10, 10]
+  scale_prob: 0.2
+  scale_range: [0.95, 1.05]
+  noise_prob: 0.4
+  noise_std: 0.05
+  brightness_prob: 0.4
+  brightness_range: [0.9, 1.1]
+
+# Inference Settings
+inference:
+  patch_size: [224, 224, 256]
+  overlap: 0.5
+  threshold: 0.5
+  apply_postprocessing: true
+  keep_largest_component: true
+
+# Preprocessing Settings (for converting NIfTI to NPZ)
+preprocessing:
+  window_level: 600.0  # CT window center (HU)
+  window_width: 1250.0  # CT window width (HU)
+  target_spacing: [0.33, 0.33, 0.33]  # Isotropic resampling (mm)
+  crop_padding: 10  # Padding around bounding box (voxels)
