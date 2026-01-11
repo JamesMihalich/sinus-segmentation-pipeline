@@ -38,7 +38,7 @@ class TrainingConfig:
 
     batch_size: int = 4
     learning_rate: float = 1e-4
-    weight_decay: float = 1e-5
+    weight_decay: float = 0.0
     epochs: int = 50
     num_workers: int = 4
 

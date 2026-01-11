@@ -41,7 +41,7 @@ class Trainer:
         device: torch.device,
         output_dir: Path,
         learning_rate: float = 1e-4,
-        weight_decay: float = 1e-5,
+        weight_decay: float = 0.0,
         scheduler_factor: float = 0.5,
         scheduler_patience: int = 3,
         scheduler_min_lr: float = 1e-6,
@@ -81,7 +81,7 @@ class Trainer:
         # Scheduler
         self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(
             self.optimizer,
-            mode="max",  # Maximize IoU
+            mode="min",  # Minimize validation loss
             factor=scheduler_factor,
             patience=scheduler_patience,
             min_lr=scheduler_min_lr,
@@ -265,7 +265,7 @@ class Trainer:
             val_loss, val_iou = self.validate(val_loader)
 
             # Update scheduler
-            self.scheduler.step(val_iou)
+            self.scheduler.step(val_loss)
             current_lr = self.optimizer.param_groups[0]["lr"]
 
             # Log history

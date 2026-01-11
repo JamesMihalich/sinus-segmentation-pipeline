@@ -92,21 +92,6 @@ class BBoxRegressor3D(nn.Module):
             nn.Sigmoid(),  # Output in [0, 1] for normalized coordinates
         )
 
-        # Initialize weights
-        self._init_weights()
-
-    def _init_weights(self) -> None:
-        """Initialize weights with Kaiming initialization."""
-        for m in self.modules():
-            if isinstance(m, nn.Conv3d):
-                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
-            elif isinstance(m, nn.BatchNorm3d):
-                nn.init.constant_(m.weight, 1)
-                nn.init.constant_(m.bias, 0)
-            elif isinstance(m, nn.Linear):
-                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
-                nn.init.constant_(m.bias, 0)
-
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Forward pass.
