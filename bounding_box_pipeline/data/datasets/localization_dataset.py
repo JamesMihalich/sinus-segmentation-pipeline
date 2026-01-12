@@ -15,6 +15,29 @@ from torch.utils.data import Dataset
 logger = logging.getLogger(__name__)
 
 
+def flip_bbox(bbox: np.ndarray, axis: int) -> np.ndarray:
+    """
+    Flip bounding box coordinates along an axis.
+
+    Args:
+        bbox: Normalized bbox [z1, y1, x1, z2, y2, x2] in [0, 1].
+        axis: Axis to flip (0=z, 1=y, 2=x).
+
+    Returns:
+        Flipped bbox coordinates.
+    """
+    bbox = bbox.copy()
+    # For normalized coordinates, flip is: new_coord = 1 - old_coord
+    # Also need to swap min/max since they reverse after flip
+    min_idx = axis
+    max_idx = axis + 3
+    new_min = 1.0 - bbox[max_idx]
+    new_max = 1.0 - bbox[min_idx]
+    bbox[min_idx] = new_min
+    bbox[max_idx] = new_max
+    return bbox
+
+
 class LocalizationDataset(Dataset):
     """
     PyTorch Dataset for 3D bounding box localization.
@@ -30,6 +53,10 @@ class LocalizationDataset(Dataset):
         normalize_image: bool = True,
         image_key: str = "image",
         label_key: str = "label",
+        augment: bool = False,
+        flip_prob: float = 0.5,
+        intensity_shift_range: float = 0.1,
+        intensity_scale_range: float = 0.1,
     ) -> None:
         """
         Initialize dataset.
@@ -39,11 +66,19 @@ class LocalizationDataset(Dataset):
             normalize_image: Whether to normalize image to [0, 1].
             image_key: Key for image array in NPZ file.
             label_key: Key for label array in NPZ file.
+            augment: Whether to apply data augmentation.
+            flip_prob: Probability of flipping along each axis.
+            intensity_shift_range: Max intensity shift (fraction of range).
+            intensity_scale_range: Max intensity scale variation.
         """
         self.files = [Path(p) for p in file_paths]
         self.normalize_image = normalize_image
         self.image_key = image_key
         self.label_key = label_key
+        self.augment = augment
+        self.flip_prob = flip_prob
+        self.intensity_shift_range = intensity_shift_range
+        self.intensity_scale_range = intensity_scale_range
 
         # Validate files exist
         for f in self.files:
@@ -82,11 +117,57 @@ class LocalizationDataset(Dataset):
         if self.normalize_image and image.max() > 1:
             image = image / 255.0
 
+        # Apply augmentation if enabled
+        if self.augment:
+            image, label = self._apply_augmentation(image, label)
+
         # Convert to tensor with channel dimension
         image_tensor = torch.from_numpy(image).unsqueeze(0)  # (1, D, H, W)
         label_tensor = torch.from_numpy(label)  # (6,)
 
         return image_tensor, label_tensor
+
+    def _apply_augmentation(
+        self,
+        image: np.ndarray,
+        label: np.ndarray,
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Apply random augmentations to image and label.
+
+        Args:
+            image: 3D volume (D, H, W).
+            label: Bbox coordinates (6,).
+
+        Returns:
+            Augmented (image, label) tuple.
+        """
+        # Random flips along each axis
+        for axis in range(3):
+            if np.random.random() < self.flip_prob:
+                image = np.flip(image, axis=axis).copy()
+                label = flip_bbox(label, axis)
+
+        # Random intensity shift
+        if self.intensity_shift_range > 0:
+            shift = np.random.uniform(
+                -self.intensity_shift_range,
+                self.intensity_shift_range,
+            )
+            image = image + shift
+
+        # Random intensity scale
+        if self.intensity_scale_range > 0:
+            scale = np.random.uniform(
+                1.0 - self.intensity_scale_range,
+                1.0 + self.intensity_scale_range,
+            )
+            image = image * scale
+
+        # Clamp to valid range
+        image = np.clip(image, 0.0, 1.0)
+
+        return image, label
 
     def get_sample_info(self, idx: int) -> Dict:
         """

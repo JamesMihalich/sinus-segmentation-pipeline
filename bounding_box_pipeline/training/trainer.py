@@ -18,7 +18,7 @@ from tqdm.auto import tqdm
 from ..evaluation.metrics import compute_iou_batch
 from ..visualization.plots import plot_training_curves
 from ..visualization.snapshots import save_prediction_snapshot
-from .losses import SmoothL1IoULoss
+from .losses import GIoULoss, SmoothL1IoULoss
 
 logger = logging.getLogger(__name__)
 
@@ -68,8 +68,8 @@ class Trainer:
         self.snapshot_dir = self.output_dir / "snapshots"
         self.snapshot_dir.mkdir(exist_ok=True)
 
-        # Loss function
-        self.criterion = SmoothL1IoULoss(smooth_l1_weight=1.0, iou_weight=0.0)
+        # Loss function - GIoU provides gradients even when boxes don't overlap
+        self.criterion = GIoULoss()
 
         # Optimizer
         self.optimizer = optim.Adam(

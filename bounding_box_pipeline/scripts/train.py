@@ -20,7 +20,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from bounding_box_pipeline.configs import Config
 from bounding_box_pipeline.data.datasets import LocalizationDataset, create_data_splits, get_dataset_files
-from bounding_box_pipeline.models import BBoxRegressor3D
+from bounding_box_pipeline.models import BBoxRegressor3D, BBoxRegressorResidual, create_regressor
 from bounding_box_pipeline.training import Trainer
 
 logging.basicConfig(
@@ -73,6 +73,13 @@ def parse_args():
         type=Path,
         help="Path to checkpoint to resume from",
     )
+    parser.add_argument(
+        "--model",
+        type=str,
+        choices=["standard", "residual", "lite"],
+        default="residual",
+        help="Model variant to use (default: residual)",
+    )
 
     return parser.parse_args()
 
@@ -123,9 +130,9 @@ def main():
 
     logger.info(f"Train: {len(train_files)}, Val: {len(val_files)}")
 
-    # Create datasets
-    train_ds = LocalizationDataset(train_files)
-    val_ds = LocalizationDataset(val_files)
+    # Create datasets (augmentation enabled for training only)
+    train_ds = LocalizationDataset(train_files, augment=True)
+    val_ds = LocalizationDataset(val_files, augment=False)
 
     # Create loaders
     train_loader = DataLoader(
@@ -147,12 +154,14 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logger.info(f"Using device: {device}")
 
-    # Create model
-    model = BBoxRegressor3D(
+    # Create model using factory function
+    model = create_regressor(
+        variant=args.model,
         input_size=config.model.input_size,
         base_channels=config.model.base_channels,
         dropout=config.model.dropout,
     )
+    logger.info(f"Model variant: {args.model}")
     logger.info(f"Model parameters: {model.get_num_parameters():,}")
 
     # Create trainer
