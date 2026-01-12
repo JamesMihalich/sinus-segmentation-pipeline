@@ -68,8 +68,9 @@ class Trainer:
         self.snapshot_dir = self.output_dir / "snapshots"
         self.snapshot_dir.mkdir(exist_ok=True)
 
-        # Loss function - GIoU provides gradients even when boxes don't overlap
-        self.criterion = GIoULoss()
+        # Loss function - SmoothL1 for stable coordinate regression,
+        # with IoU component to directly optimize overlap metric
+        self.criterion = SmoothL1IoULoss(smooth_l1_weight=1.0, iou_weight=0.5)
 
         # Optimizer
         self.optimizer = optim.Adam(
