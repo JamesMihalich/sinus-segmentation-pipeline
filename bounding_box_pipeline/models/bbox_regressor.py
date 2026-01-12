@@ -223,8 +223,8 @@ class BBoxRegressorResidual(nn.Module):
     """
     Residual 3D CNN for bounding box regression.
 
-    Uses residual blocks for better gradient flow and improved training.
-    Recommended for better IoU performance.
+    Uses residual blocks for better gradient flow while preserving
+    spatial information critical for localization tasks.
     """
 
     def __init__(
@@ -263,16 +263,18 @@ class BBoxRegressorResidual(nn.Module):
         self.layer4 = ResidualBlock3D(c * 4, c * 8, downsample=True)  # 16->8
         self.layer5 = ResidualBlock3D(c * 8, c * 16, downsample=True) # 8->4
 
-        # Global average pooling
-        self.gap = nn.AdaptiveAvgPool3d(1)
+        # IMPORTANT: Preserve spatial information for localization!
+        # Use flatten instead of GAP - keeps 4x4x4 spatial grid
+        final_size = input_size[0] // 32  # 5 downsampling layers
+        flattened_size = (c * 16) * (final_size ** 3)  # 512 * 64 = 32768
 
-        # Regression head with smoother dimension reduction
+        # Regression head - similar to standard model but with residual features
         self.regressor = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(c * 16, 256),
+            nn.Linear(flattened_size, 512),
             nn.ReLU(inplace=True),
             nn.Dropout(dropout),
-            nn.Linear(256, 64),
+            nn.Linear(512, 64),
             nn.ReLU(inplace=True),
             nn.Linear(64, 6),
             nn.Sigmoid(),
@@ -286,7 +288,7 @@ class BBoxRegressorResidual(nn.Module):
         x = self.layer3(x)
         x = self.layer4(x)
         x = self.layer5(x)
-        x = self.gap(x)
+        # No GAP - preserve spatial information for localization
         bbox = self.regressor(x)
         return bbox
 
