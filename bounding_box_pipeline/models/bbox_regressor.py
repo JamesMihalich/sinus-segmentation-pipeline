@@ -10,48 +10,71 @@ import torch
 from torch import nn
 
 
-class ResidualBlock3D(nn.Module):
+class ConvBlock3D(nn.Module):
     """
-    3D Residual block with optional downsampling.
-
-    Uses pre-activation design (BN -> ReLU -> Conv) for better gradient flow.
+    Standard conv block matching the working BBoxRegressor3D design.
+    Conv -> BN -> ReLU -> MaxPool
     """
 
     def __init__(
         self,
         in_channels: int,
         out_channels: int,
-        downsample: bool = False,
     ) -> None:
         super().__init__()
-        stride = 2 if downsample else 1
-
-        self.bn1 = nn.BatchNorm3d(in_channels)
-        self.conv1 = nn.Conv3d(
-            in_channels, out_channels, kernel_size=3, stride=stride, padding=1
-        )
-        self.bn2 = nn.BatchNorm3d(out_channels)
-        self.conv2 = nn.Conv3d(out_channels, out_channels, kernel_size=3, padding=1)
+        self.conv = nn.Conv3d(in_channels, out_channels, kernel_size=3, padding=1)
+        self.bn = nn.BatchNorm3d(out_channels)
         self.relu = nn.ReLU(inplace=True)
+        self.pool = nn.MaxPool3d(kernel_size=2, stride=2)
 
-        # Skip connection with optional projection
-        if downsample or in_channels != out_channels:
-            self.skip = nn.Conv3d(in_channels, out_channels, kernel_size=1, stride=stride)
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.conv(x)
+        x = self.bn(x)
+        x = self.relu(x)
+        x = self.pool(x)
+        return x
+
+
+class ResidualConvBlock3D(nn.Module):
+    """
+    Conv block with residual connection.
+    Matches the standard model's design but adds a skip connection.
+
+    Uses post-activation (Conv -> BN -> ReLU) which is more stable.
+    """
+
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+    ) -> None:
+        super().__init__()
+        self.conv = nn.Conv3d(in_channels, out_channels, kernel_size=3, padding=1)
+        self.bn = nn.BatchNorm3d(out_channels)
+        self.relu = nn.ReLU(inplace=True)
+        self.pool = nn.MaxPool3d(kernel_size=2, stride=2)
+
+        # Skip connection: pool first to match spatial dims, then project channels
+        if in_channels != out_channels:
+            self.skip = nn.Sequential(
+                nn.MaxPool3d(kernel_size=2, stride=2),
+                nn.Conv3d(in_channels, out_channels, kernel_size=1),
+                nn.BatchNorm3d(out_channels),
+            )
         else:
-            self.skip = nn.Identity()
+            self.skip = nn.MaxPool3d(kernel_size=2, stride=2)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         identity = self.skip(x)
 
-        out = self.bn1(x)
+        out = self.conv(x)
+        out = self.bn(out)
         out = self.relu(out)
-        out = self.conv1(out)
+        out = self.pool(out)
 
-        out = self.bn2(out)
-        out = self.relu(out)
-        out = self.conv2(out)
-
-        return out + identity
+        # Add residual and apply another ReLU
+        out = self.relu(out + identity)
+        return out
 
 
 class BBoxRegressor3D(nn.Module):
@@ -223,8 +246,8 @@ class BBoxRegressorResidual(nn.Module):
     """
     Residual 3D CNN for bounding box regression.
 
-    Uses residual blocks for better gradient flow while preserving
-    spatial information critical for localization tasks.
+    Nearly identical to BBoxRegressor3D but with skip connections added.
+    This ensures stability while potentially improving gradient flow.
     """
 
     def __init__(
@@ -248,27 +271,19 @@ class BBoxRegressorResidual(nn.Module):
         self.input_size = input_size
         c = base_channels
 
-        # Initial convolution
-        self.stem = nn.Sequential(
-            nn.Conv3d(in_channels, c, kernel_size=3, padding=1),
-            nn.BatchNorm3d(c),
-            nn.ReLU(inplace=True),
-        )
-
-        # Residual blocks with downsampling
+        # Use residual blocks that mirror the standard model's design
         # 128 -> 64 -> 32 -> 16 -> 8 -> 4
-        self.layer1 = ResidualBlock3D(c, c, downsample=True)       # 128->64
-        self.layer2 = ResidualBlock3D(c, c * 2, downsample=True)   # 64->32
-        self.layer3 = ResidualBlock3D(c * 2, c * 4, downsample=True)  # 32->16
-        self.layer4 = ResidualBlock3D(c * 4, c * 8, downsample=True)  # 16->8
-        self.layer5 = ResidualBlock3D(c * 8, c * 16, downsample=True) # 8->4
+        self.block1 = ResidualConvBlock3D(in_channels, c)      # 128->64
+        self.block2 = ResidualConvBlock3D(c, c * 2)            # 64->32
+        self.block3 = ResidualConvBlock3D(c * 2, c * 4)        # 32->16
+        self.block4 = ResidualConvBlock3D(c * 4, c * 8)        # 16->8
+        self.block5 = ResidualConvBlock3D(c * 8, c * 16)       # 8->4
 
-        # IMPORTANT: Preserve spatial information for localization!
-        # Use flatten instead of GAP - keeps 4x4x4 spatial grid
-        final_size = input_size[0] // 32  # 5 downsampling layers
+        # Calculate flattened size (same as standard model)
+        final_size = input_size[0] // 32  # 5 pooling layers
         flattened_size = (c * 16) * (final_size ** 3)  # 512 * 64 = 32768
 
-        # Regression head - similar to standard model but with residual features
+        # Regression head (identical to standard model)
         self.regressor = nn.Sequential(
             nn.Flatten(),
             nn.Linear(flattened_size, 512),
@@ -282,13 +297,11 @@ class BBoxRegressorResidual(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass."""
-        x = self.stem(x)
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
-        x = self.layer4(x)
-        x = self.layer5(x)
-        # No GAP - preserve spatial information for localization
+        x = self.block1(x)
+        x = self.block2(x)
+        x = self.block3(x)
+        x = self.block4(x)
+        x = self.block5(x)
         bbox = self.regressor(x)
         return bbox
 
