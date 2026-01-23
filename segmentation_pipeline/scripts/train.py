@@ -26,6 +26,10 @@ from segmentation_pipeline.data.datasets.volume_dataset import (
     create_data_splits,
 )
 from segmentation_pipeline.models.unet import ResidualUnetSE3D
+from segmentation_pipeline.models.unet_enhanced import (
+    ResidualUnetSE3DEnhanced,
+    DeepSupervisionLoss,
+)
 from segmentation_pipeline.training.trainer import Trainer
 
 logging.basicConfig(
@@ -77,6 +81,23 @@ def parse_args():
         choices=["concat", "additive"],
         default="concat",
         help="Skip connection mode",
+    )
+    parser.add_argument(
+        "--model",
+        choices=["standard", "enhanced"],
+        default="standard",
+        help="Model architecture: standard (original) or enhanced (attention gates + deep supervision)",
+    )
+    parser.add_argument(
+        "--base-channels",
+        type=int,
+        default=None,
+        help="Base channel count (default: 16 for standard, 32 for enhanced)",
+    )
+    parser.add_argument(
+        "--no-deep-supervision",
+        action="store_true",
+        help="Disable deep supervision for enhanced model",
     )
     parser.add_argument(
         "--resume",
@@ -183,10 +204,25 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logger.info(f"Using device: {device}")
 
-    model = ResidualUnetSE3D(
-        skip_mode=args.skip_mode,
-        se_reduction_ratio=config.model.se_reduction_ratio,
-    )
+    use_deep_supervision = False
+    if args.model == "enhanced":
+        base_channels = args.base_channels if args.base_channels else 32
+        use_deep_supervision = not args.no_deep_supervision
+        model = ResidualUnetSE3DEnhanced(
+            base_channels=base_channels,
+            skip_mode=args.skip_mode,
+            se_reduction_ratio=config.model.se_reduction_ratio,
+            deep_supervision=use_deep_supervision,
+        )
+        logger.info(f"Using enhanced model (base_channels={base_channels}, deep_supervision={use_deep_supervision})")
+    else:
+        base_channels = args.base_channels if args.base_channels else 16
+        model = ResidualUnetSE3D(
+            base_channels=base_channels,
+            skip_mode=args.skip_mode,
+            se_reduction_ratio=config.model.se_reduction_ratio,
+        )
+        logger.info(f"Using standard model (base_channels={base_channels})")
     logger.info(f"Model parameters: {model.get_num_parameters():,}")
 
     # Create trainer
@@ -199,6 +235,7 @@ def main():
         bce_weight=config.training.bce_weight,
         dice_weight=config.training.dice_weight,
         gradient_clip_norm=config.training.gradient_clip_norm,
+        deep_supervision=use_deep_supervision,
     )
 
     # Resume if specified

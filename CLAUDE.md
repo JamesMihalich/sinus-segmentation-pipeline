@@ -45,9 +45,21 @@ python segmentation_pipeline/scripts/preprocess.py \
     --input /path/to/nifti --output /path/to/npz \
     --resample 0.33 0.33 0.33 --window-level -300 --window-width 1000
 
-# Train segmentation model
+# Preprocess without cropping (keep full volume)
+python segmentation_pipeline/scripts/preprocess.py \
+    --input /path/to/nifti --output /path/to/npz --no-crop
+
+# Export NPZ slices as PNG (for 2D training or visualization)
+python segmentation_pipeline/scripts/export_slices.py \
+    --input /path/to/npz --output /path/to/png --size 512 --axis 2
+
+# Train segmentation model (standard)
 python segmentation_pipeline/scripts/train.py \
     --data-dir /path/to/npz --output-dir ./results --epochs 100
+
+# Train enhanced model (attention gates + deep supervision)
+python segmentation_pipeline/scripts/train.py \
+    --data-dir /path/to/npz --output-dir ./results --model enhanced --epochs 100
 
 # Run inference with sliding window
 python segmentation_pipeline/scripts/predict.py \
@@ -71,7 +83,9 @@ All scripts support `--config path/to/config.yaml` for YAML configuration.
 
 ### Models
 - `BBoxRegressor3D`: 5 conv blocks (32→64→128→256→512) + FC head → 6 sigmoid outputs (~8.5M params)
-- `ResidualUnetSE3D`: 3D Residual U-Net with Squeeze-and-Excitation blocks, configurable skip connections (`concat` or `additive`)
+- `ResidualUnetSE3D`: 3D Residual U-Net with SE blocks, channels 16→32→64→128 (`--model standard`)
+- `ResidualUnetSE3DEnhanced`: Enhanced 3D U-Net with attention gates, deep supervision, channels 32→64→128→256 (`--model enhanced`)
+- `AttentionResUNet2D`: 2D U-Net with attention gates for slice-based segmentation, channels 64→128→256→512→1024
 
 ### Key Configuration
 - **Bounding box**: Input 128³, window L=600/W=1250, batch size 4

@@ -46,6 +46,8 @@ class Trainer:
         scheduler_factor: float = 0.5,
         scheduler_patience: int = 3,
         scheduler_min_lr: float = 1e-6,
+        deep_supervision: bool = False,
+        ds_weights: Tuple[float, float, float] = (1.0, 0.5, 0.25),
     ) -> None:
         """
         Initialize trainer.
@@ -62,11 +64,15 @@ class Trainer:
             scheduler_factor: LR reduction factor.
             scheduler_patience: Epochs to wait before reducing LR.
             scheduler_min_lr: Minimum learning rate.
+            deep_supervision: Whether model uses deep supervision (returns dict).
+            ds_weights: Weights for deep supervision outputs (main, ds1, ds2).
         """
         self.model = model.to(device)
         self.device = device
         self.output_dir = Path(output_dir)
         self.gradient_clip_norm = gradient_clip_norm
+        self.deep_supervision = deep_supervision
+        self.ds_weights = ds_weights
 
         # Create directories
         self.checkpoint_dir = self.output_dir / "checkpoints"
@@ -99,6 +105,58 @@ class Trainer:
         # Tracking
         self.best_val_loss = math.inf
         self.current_epoch = 0
+
+    def _compute_loss(
+        self,
+        outputs: Any,
+        targets: torch.Tensor,
+    ) -> torch.Tensor:
+        """
+        Compute loss, handling both standard and deep supervision outputs.
+
+        Args:
+            outputs: Model outputs (tensor or dict with "out", "ds1", "ds2").
+            targets: Ground truth masks.
+
+        Returns:
+            Combined loss value.
+        """
+        if self.deep_supervision and isinstance(outputs, dict):
+            # Main output loss
+            loss = self.ds_weights[0] * self.criterion(outputs["out"], targets)
+
+            # Deep supervision losses
+            if "ds1" in outputs:
+                ds1_target = targets
+                if outputs["ds1"].shape != targets.shape:
+                    ds1_target = torch.nn.functional.interpolate(
+                        targets.float(),
+                        size=outputs["ds1"].shape[2:],
+                        mode="nearest",
+                    )
+                loss = loss + self.ds_weights[1] * self.criterion(outputs["ds1"], ds1_target)
+
+            if "ds2" in outputs:
+                ds2_target = targets
+                if outputs["ds2"].shape != targets.shape:
+                    ds2_target = torch.nn.functional.interpolate(
+                        targets.float(),
+                        size=outputs["ds2"].shape[2:],
+                        mode="nearest",
+                    )
+                loss = loss + self.ds_weights[2] * self.criterion(outputs["ds2"], ds2_target)
+
+            return loss
+        else:
+            # Standard output (tensor)
+            logits = outputs["out"] if isinstance(outputs, dict) else outputs
+            return self.criterion(logits, targets)
+
+    def _get_logits(self, outputs: Any) -> torch.Tensor:
+        """Extract main logits from model outputs."""
+        if isinstance(outputs, dict):
+            return outputs["out"]
+        return outputs
 
     def train_epoch(
         self,
@@ -141,8 +199,8 @@ class Trainer:
                 device_type="cuda",
                 enabled=torch.cuda.is_available(),
             ):
-                logits = self.model(volumes)
-                loss = self.criterion(logits, masks)
+                outputs = self.model(volumes)
+                loss = self._compute_loss(outputs, masks)
 
             # Backward pass
             self.scaler.scale(loss).backward()
@@ -195,8 +253,9 @@ class Trainer:
             volumes = volumes.to(self.device, non_blocking=True)
             masks = masks.to(self.device, non_blocking=True)
 
-            logits = self.model(volumes)
-            loss = self.criterion(logits, masks)
+            outputs = self.model(volumes)
+            logits = self._get_logits(outputs)
+            loss = self._compute_loss(outputs, masks)
 
             probs = torch.sigmoid(logits)
             dice = dice_coefficient(probs, masks)

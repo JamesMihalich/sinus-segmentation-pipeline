@@ -9,6 +9,7 @@ A consolidated toolkit for 3D medical image segmentation using deep learning. Th
 - [Pipeline Overview](#pipeline-overview)
 - [Data Preprocessing](#data-preprocessing)
 - [Training](#training)
+- [Model Architectures](#model-architectures)
 - [Inference](#inference)
 - [Evaluation](#evaluation)
 - [Configuration](#configuration)
@@ -184,7 +185,28 @@ python scripts/preprocess.py \
     --window-width 1000 \
     --padding 10 \
     --fix-headers
+
+# Without cropping (keep full volume)
+python scripts/preprocess.py \
+    --input /path/to/nifti \
+    --output /path/to/npz \
+    --no-crop
 ```
+
+### Preprocessing Options
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--input` | required | Input directory with NIfTI files |
+| `--output` | required | Output directory for NPZ files |
+| `--window-level` | -300 | CT window level (HU) |
+| `--window-width` | 1000 | CT window width (HU) |
+| `--padding` | 10 | Padding around bounding box (ignored with `--no-crop`) |
+| `--no-crop` | off | Disable cropping, keep full volume |
+| `--resample` | none | Resample to isotropic spacing (x y z) |
+| `--fix-headers` | off | Fix header mismatches before processing |
+| `--image-pattern` | `H*.nii` | Glob pattern for image files |
+| `--label-suffix` | `_label` | Suffix for label files |
 
 ### Expected File Naming
 
@@ -195,6 +217,40 @@ The preprocessing expects paired files:
 Output NPZ files contain:
 - `image`: Windowed uint8 array (0-255)
 - `label`: Binary uint8 mask (0 or 1)
+
+### Exporting Slices as PNG
+
+Convert NPZ volumes to 2D PNG slices for visualization or 2D model training:
+
+```bash
+# Export all slices as 512x512 grayscale PNGs
+python scripts/export_slices.py \
+    --input /path/to/npz \
+    --output /path/to/png_slices
+
+# Custom size and axis
+python scripts/export_slices.py \
+    --input /path/to/npz \
+    --output /path/to/png_slices \
+    --size 256 \
+    --axis 0
+
+# Export labels instead of images
+python scripts/export_slices.py \
+    --input /path/to/npz \
+    --output /path/to/label_slices \
+    --key label
+```
+
+Output files are named `{patient_id}_slice_{number}.png` (e.g., `P0001_slice_042.png`).
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--input` | required | Input directory with NPZ files |
+| `--output` | required | Output directory for PNG files |
+| `--axis` | 2 | Slice axis: 0=sagittal, 1=coronal, 2=axial |
+| `--size` | 512 | Output image size (square, with black padding) |
+| `--key` | `image` | Array to export: `image` or `label` |
 
 ### Programmatic Usage
 
@@ -232,11 +288,32 @@ process_dataset_to_npz(
 ### Command Line
 
 ```bash
-# Basic training
+# Basic training (standard model)
 python scripts/train.py \
     --data-dir /path/to/npz \
     --output-dir ./results \
     --epochs 100
+
+# Enhanced model with attention gates and deep supervision
+python scripts/train.py \
+    --data-dir /path/to/npz \
+    --output-dir ./results \
+    --model enhanced \
+    --epochs 100
+
+# Enhanced model with custom base channels
+python scripts/train.py \
+    --data-dir /path/to/npz \
+    --output-dir ./results \
+    --model enhanced \
+    --base-channels 48
+
+# Enhanced model without deep supervision
+python scripts/train.py \
+    --data-dir /path/to/npz \
+    --output-dir ./results \
+    --model enhanced \
+    --no-deep-supervision
 
 # With custom parameters
 python scripts/train.py \
@@ -252,6 +329,21 @@ python scripts/train.py \
     --data-dir /path/to/npz \
     --resume ./results/run-XXXXX/checkpoints/best.pt
 ```
+
+### Training Options
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--data-dir` | required | Directory containing NPZ files |
+| `--output-dir` | `./results` | Output directory for checkpoints |
+| `--model` | `standard` | Model architecture: `standard` or `enhanced` |
+| `--base-channels` | 16/32 | Base feature channels (auto-set by model type) |
+| `--epochs` | 100 | Number of training epochs |
+| `--batch-size` | 1 | Batch size |
+| `--lr` | 1e-4 | Learning rate |
+| `--skip-mode` | `concat` | Skip connections: `concat` or `additive` |
+| `--no-deep-supervision` | off | Disable deep supervision (enhanced model only) |
+| `--resume` | none | Resume from checkpoint path |
 
 ### Using a Config File
 
@@ -344,6 +436,146 @@ plot_training_curves(
     output_path='training_curves.png',
 )
 ```
+
+---
+
+## Model Architectures
+
+### Standard 3D U-Net (`ResidualUnetSE3D`)
+
+The default model with residual blocks and Squeeze-and-Excitation attention.
+
+| Property | Value |
+|----------|-------|
+| Base channels | 16 |
+| Channel progression | 16 → 32 → 64 → 128 |
+| Attention | SE (channel attention in blocks) |
+| Skip connections | Concat or Additive |
+
+```python
+from segmentation_pipeline.models import ResidualUnetSE3D, create_unet
+
+# Direct instantiation
+model = ResidualUnetSE3D(
+    in_channels=1,
+    out_channels=1,
+    base_channels=16,
+    skip_mode='concat',
+)
+
+# Using presets
+model = create_unet('standard')    # Concat skips, SE=8
+model = create_unet('additive')    # Add skips, SE=2
+model = create_unet('lightweight') # Smaller base channels
+```
+
+### Enhanced 3D U-Net (`ResidualUnetSE3DEnhanced`)
+
+Improved model with attention gates on skip connections and deep supervision.
+
+| Property | Value |
+|----------|-------|
+| Base channels | 32 |
+| Channel progression | 32 → 64 → 128 → 256 |
+| Attention | SE blocks + Attention Gates on skips |
+| Deep supervision | Auxiliary losses at decoder stages |
+| Dropout | 0.15 after bottleneck |
+| Bottleneck | 2 residual blocks (deeper) |
+
+```python
+from segmentation_pipeline.models import ResidualUnetSE3DEnhanced, create_enhanced_unet
+
+# Direct instantiation
+model = ResidualUnetSE3DEnhanced(
+    in_channels=1,
+    out_channels=1,
+    base_channels=32,
+    deep_supervision=True,
+    dropout_rate=0.15,
+)
+
+# Using presets
+model = create_enhanced_unet('standard')    # 32 base channels
+model = create_enhanced_unet('large')       # 48 base channels
+model = create_enhanced_unet('lightweight') # 24 base channels
+```
+
+#### Deep Supervision
+
+Deep supervision adds auxiliary loss functions at intermediate decoder stages, improving gradient flow and regularization.
+
+```
+Decoder Stage 3 → Auxiliary Loss (weight: 0.25)
+       ↓
+Decoder Stage 2 → Auxiliary Loss (weight: 0.5)
+       ↓
+Final Output   → Main Loss (weight: 1.0)
+```
+
+During training, the total loss is: `L = 1.0 * L_main + 0.5 * L_ds1 + 0.25 * L_ds2`
+
+During inference, only the main output is used.
+
+```python
+from segmentation_pipeline.models import DeepSupervisionLoss
+
+# Training with deep supervision
+model = ResidualUnetSE3DEnhanced(deep_supervision=True)
+criterion = DeepSupervisionLoss(
+    base_loss=nn.BCEWithLogitsLoss(),
+    weights=(1.0, 0.5, 0.25),
+)
+
+outputs = model(x)  # Returns {"out": ..., "ds1": ..., "ds2": ...}
+loss = criterion(outputs, target)
+```
+
+#### Attention Gates
+
+Attention gates learn to focus on relevant spatial regions in skip connections, helping the decoder attend to important encoder features.
+
+```python
+from segmentation_pipeline.models import AttentionGate3D
+
+# Standalone usage
+att_gate = AttentionGate3D(
+    gate_channels=128,   # From decoder
+    skip_channels=128,   # From encoder
+)
+attended_skip = att_gate(gate=decoder_features, skip=encoder_features)
+```
+
+### 2D Attention U-Net (`AttentionResUNet2D`)
+
+A 2D model for slice-based segmentation with attention gates.
+
+| Property | Value |
+|----------|-------|
+| Input size | 512 × 512 (single channel) |
+| Base channels | 64 |
+| Channel progression | 64 → 128 → 256 → 512 → 1024 |
+| Attention | Attention Gates on skip connections |
+
+```python
+from segmentation_pipeline.models import AttentionResUNet2D
+
+model = AttentionResUNet2D(
+    in_channels=1,
+    out_channels=1,
+    base_features=64,
+)
+
+# Input: (B, 1, 512, 512)
+# Output: (B, 1, 512, 512)
+```
+
+### Model Comparison
+
+| Model | Parameters | Base Ch | Attention | Deep Supervision |
+|-------|------------|---------|-----------|------------------|
+| `ResidualUnetSE3D` | ~500K | 16 | SE blocks | No |
+| `ResidualUnetSE3DEnhanced` | ~2M | 32 | SE + Attention Gates | Yes |
+| `AttentionResUNet2D` | ~8M | 64 | Attention Gates | No |
 
 ---
 
@@ -535,10 +767,20 @@ config.to_yaml('configs/saved_config.yaml')
 ### Models
 
 ```python
-from segmentation_pipeline.models import ResidualUnetSE3D
+from segmentation_pipeline.models import (
+    # 3D Models
+    ResidualUnetSE3D,
+    create_unet,
+    ResidualUnetSE3DEnhanced,
+    create_enhanced_unet,
+    DeepSupervisionLoss,
+    AttentionGate3D,
+    # 2D Models
+    AttentionResUNet2D,
+)
 from segmentation_pipeline.models.blocks import ChannelSELayer3D, ResNetBlockSE
 
-# Standard model (concatenation skip connections)
+# Standard 3D model
 model = ResidualUnetSE3D(
     in_channels=1,
     out_channels=1,
@@ -547,18 +789,26 @@ model = ResidualUnetSE3D(
     se_reduction_ratio=8,
 )
 
-# Additive variant (element-wise addition skip connections)
-model = ResidualUnetSE3D(
-    skip_mode='additive',
-    se_reduction_ratio=2,
-    use_interpolation_safeguard=True,
+# Enhanced 3D model with attention gates and deep supervision
+model = ResidualUnetSE3DEnhanced(
+    in_channels=1,
+    out_channels=1,
+    base_channels=32,
+    deep_supervision=True,
+    dropout_rate=0.15,
+)
+
+# 2D model for slice-based segmentation
+model_2d = AttentionResUNet2D(
+    in_channels=1,
+    out_channels=1,
+    base_features=64,
 )
 
 # Using presets
-from segmentation_pipeline.models.unet import create_unet
-model = create_unet('standard')   # Concat, SE=8
-model = create_unet('additive')   # Add, SE=2, interpolation safeguard
-model = create_unet('lightweight') # Smaller base channels
+model = create_unet('standard')           # Standard 3D
+model = create_enhanced_unet('standard')  # Enhanced 3D
+model = create_enhanced_unet('large')     # Enhanced 3D with more capacity
 ```
 
 ### Data
