@@ -1,0 +1,235 @@
+PatientID,Diagnosis,NOSE,SNOT22,ENS6Q
+P0001.1,septal perforation,17,64,
+P0003.1,ENS,13,31,
+P0004.1,septal devation.,11,47,
+P0005.1,anosmia,5,7,
+P0006.1,septal perforation,3,12,
+P0006.2,septal perforation,4,15,
+P0007.1,septal perforation,0,5,
+P0008.1,ENS,,,19
+P0010.1,Turbinate hypertrophy+ other,19,93,
+P0011.1,smell loss,12,54,
+P0012.1,Chronic sinusitis,19,55,
+P0012.2,Chronic sinusitis,0,0,
+P0014.1,"nasal onstruction, possible ENS, Hx of septoplasty with inferior turb reduction.",19,71,16
+P0015.1,septal perforation,19,65,
+P0016.1,"Inferior Tubinate Hypertrophy, Adenoid hypertrophy, allergic rhinitis",1,12,
+P0016.2,"Inferior Tubinate Hypertrophy, Adenoid hypertrophy, allergic rhinitis",,,3
+P0017.1,sarcoidosis/nasal obstruction,7,19,
+P0019.2,ENS,18,50,13
+P0020.1,"inferior turbinate hypertrophy , nasal obstrction",13,53,
+P0020.2,"inferior turbinate hypertrophy , nasal obstrction",0,4,
+P0021.1,Septal Perforation,2,46,
+P0022.1,Deviated Nasal Septum,19,64,
+P0023.1,ENS,9,45,12
+P0025.1,Olfactory loss- surgical removal,2,13,
+P0026.1,septal perforation,15,46,
+P0027.1,smell disorder,6,18,
+P0028.1,"sept deviation,",16,42,
+P0029.1,septal perforation,6,33,
+P0030.1,"Sinus,Turbinate,septal deviation",18,87,
+P0030.2,"Sinus,Turbinate,septal deviation",9,33,10
+P0031.1,"Inferior turbinate hypertrophy, nasal obstruction",13,43,
+P0032.1,polyps +smell loss,17,43,
+P0033.2,Inferior turbinate hypertrophy,0,36,2
+P0034.1,ENS probably,,63,14
+P0034.2,ENS probably,15,65,10
+P0035.2,ENS,15,82,27
+P0036.1,"Septal deviation, inferior turbinate hty",11,12,
+P0036.2,"Septal deviation, inferior turbinate hty",6,3,
+P0037.2,ENS like but not qualified,12,61,12
+P0038.2,"tubinate hypertrophy, septal deviation, chronic sinusitis",1,8,
+P0039.1,septal perforation,18,53,
+P0040.1,skull base Pituitary mass,7,20,
+P0041.1,sinusitis,3,47,
+P0042.1,ENS,12,25,9
+P0042.2,ENS,8,38,25
+P0043.1,ENS,17,54,21
+P0044.1,ENS,19,54,23
+P0045.1,"ethmoidal sinusitis, hypertrophy of nasal tubinates",13,56,
+P0046.1,Nasal obstruction secondary to sensory deficit,4,23,
+P0047.1,"Inferior turbinate hypertrophy, nasal obstruction, septal deviation, nasal valve collapse",15,34,
+P0048.1,septal perf,12,55,
+P0048.2,septal perf,6,28,
+P0049.1,Nasal Obstruction,17,40,
+P0050.1,nasal obstruction/septal perforation,4,18,
+P0051.1,Chronic Sinusitis,1,5,
+P0052.1,"chronic rhinitis, turbinate hty, rhinorrhea and edema along turbs",18,69,
+P0053.2,"nasal obstruction, ENS like but don't qualify",,,13
+P0054.1,asymtomatic septal perf.,9,28,
+P0056.1,Turbinate Hy/ Sepatal Devation,8,54,
+P0057.1,Chronic sinusitis,10,14,
+P0058.1,asymtomatic septal perf.,7,11,
+P0060.1,Chronic sphenoid sinusitis with choanal polyp. Tubinate Hy Inferior,,23,
+P0061.1,septal deviation,12,22,
+P0062.1,Turb Hty,,40,
+P0063.2,Hypertrophy of nasal turbinates,17,46,
+P0064.2,Turb Hty,14,53,
+P0065.2,ENS,13,36,
+P0066.2,"nasal obstruction, likely autoimmnue disease",18,68,
+P0067.1,septal perf,,23,
+P0068.1,"ENS like, but doesn't qualify",17,49,6
+P0069.1,"Turbinate HTY , asthma, likely chronic rhinosinusitis, likely allrgic rhinitis.",14,46,
+P0071.1,"Sinusitis, turb HTY, concha bullosa, sept deviation",15,55,
+P0072.1,"Concha Bullosa , left silent sinus, left floor orbitalinjusry , diloplia, enophthalmos.",9,21,
+P0073.1,Sinus,14,75,
+P0074.1,"Septal Deviation, Chronic rihinosinusitis,turb hty,septal perf.",9,65,
+P0075.1,Sept Dev/Turb,20,66,
+P0076.1,Sept perf +Turb,16,31,
+P0076.2,Sept perf +Turb,0,0,
+P0077.1,Sept Dev/ Inf Turb,8,40,
+P0077.2,Sept Dev/ Inf Turb,5,48,
+P0078.1,Nasal septal perforation,9,35,
+P0079.1,Chronic pansinusitis,18,56,
+P0080.1,"Sept Dev, sept perf, nasal obstruction.",15,74,
+P0081.1,Pitutarry Adenoma,7,11,
+P0082.1,"Chronic maxillary sinusitis,( ENS like but not qualified)",11,49,
+P0087.1,"Turbinate hypertrophy, Septal deviation",11,64,
+P0088.1,nasal obstruction/nasal valve,17,52,
+P0089.1,Nasal Crusting,3,24,
+P0090.1,Septal Perf,10,42,
+P0090.2,Septal Perf,13,31,
+P0091.1,sinusitis,8,29,
+P0092.1,"Inferior Turb hty, sept Dev",14,43,
+P0093.1,Sinusitis ENS likely,14,60,
+P0094.1,Sinus/Turb reduction,19,41,
+P0095.1,Asymptomatic  septal perforation,0,19,
+P0096.1,Nasal congestion/sinus,10,26,
+P0097.1,"nasal Obstruction, Septal deviation, Bilateral Inferior turb hty",16,57,16
+P0097.2,"nasal Obstruction, Septal deviation, Bilateral Inferior turb hty",,11,0
+P0098.1,septal deviation,11,28,
+P0099.1,"Septal perforation, sept deviation",14,43,
+P0099.2,"Septal perforation, sept deviation",8,60,
+P0100.1,"nasal valve collapse, nasal obstruction, septal dev, allergic rhinitis.",15,48,
+P0101.1,septal perf,15,47,
+P0102.1,"Inferior turbinate hypertrophy, sept deviation, nasal obstruction",10,10,0
+P0102.2,"Inferior turbinate hypertrophy, sept deviation, nasal obstruction",1,0,
+P0103.1,sinus+ smell loss,8,45,
+P0104.1,"Turbinate hypertrophy, septal deviation",18,73,
+P0105.1,Septal deviation/ smell loss,11,48,
+P0106.1,Sept Dev,10,32,7
+P0106.2,Sept Dev,1,13,
+P0107.1,"Septal deviation,Chronic rhinosinusitis with recurrent acute bacterial sinusitis, resected inferior turbinates",4,43,4
+P0108.1,"Septal deviation,Chronic rhinosinusitis with recurrent acute bacterial sinusitis, resected inferior turbinates",,16,
+P0109.1,"Septal deviation,Chronic rhinosinusitis with recurrent acute bacterial sinusitis, resected inferior turbinates",0,9,
+P0110.1,"Septal deviation,Chronic rhinosinusitis with recurrent acute bacterial sinusitis, resected inferior turbinates",1,1,
+P0111.1,Essential fructosuria,8,24,
+P0112.1,"Atrophic rhinitis , nasal onstruction, Bilateral tubinates removed",8,43,
+P0113.1,Atrophic rhinitis,14,59,
+P0114.1,"Dysphagia, septal perf, globus sensation.",7,15,
+P0115.1,"Inferior Tubinate, nasal valve collapse",15,56,
+P0116.1,"Inferior Tubinate, nasal valve collapse",12,30,
+P0117.1,"deviated septum, nasal obstruction",,32,9
+P0119.1,Asymptomatic Septal perf,16,58,
+P0120.1,ENS,4,48,
+P0121.1,"Nasal Obstruction, inferior turbinate hypertrophy.",17,68,
+P0122.1,"Nasal Obstruction, inferior turbinate hypertrophy.",16,74,
+P0123.1,"Nasal Obstruction, inferior turbinate hypertrophy.",8,20,
+P0124.1,"CRSwNP, Anosmia, septal perf, nasal scarring",20,65,
+P0125.1,"sept deviation, nasal obstruction, inferior turbinate hypertrophy",9,37,
+P0126.1,"Allergic Rhinosinusitis, Bilateral Inferior turbinate hypertrophy",4,48,
+P0129.1,ENS,18,64,
+P0130.1,Septal perf,16,73,
+P0131.1,"Anosmia, pansinusitis",6,38,
+P0131.2,"Anosmia, pansinusitis",0,9,
+P0132.1,ENS??,16,48,
+P0133.1,ENS like but not qualified,7,27,
+P0134.1,"asymtomatic septal Perf, pituitary tumor",1,19,
+P0135.1,"ENS, nasal obstruction",18,61,21
+P0136.1,nasal Obstruction,,14,
+P0136.2,nasal Obstruction,17,38,
+P0137.1,sinus/ens possible,12,65,
+P0137.2,sinus/ens possible,10,55,
+P0138.1,sinus/ens possible,4,49,
+P0138.2,sinus/ens possible,4,41,
+P0139.2,nasal obstruction post surgery. ENS?,19,37,
+P0140.1,"Nasal Congestion, smell loss",5,20,
+P0141.1,turb,15,50,
+P0142.1,Possiblity for Aerin Study or other intervntion. ENS confirmed,17,25,14
+P0143.1,Septal deviation,17,20,
+P0144.1,Septal perf,9,25,
+P0145.1,"ENS?? Not CT confirmation. CT was done after injection, looks completely normal or turb hyper",14,35,18
+P0146.1,"Anosmia, sept deviation, inf. Trub Hty",16,41,
+P0147.1,"Anosmia, sept deviation, inf. Trub Hty",8,12,
+P0148.1,"Chronic Rhinosinusitis , smell  loss",16,50,
+P0149.1,"Septal Deviation, Inferior Turbinate Hypertrophy",17,57,
+P0149.2,"Septal Deviation, Inferior Turbinate Hypertrophy",1,11,
+P0150.1,"Septal Deviation,  Turbinate Hypertrophy, chronic ehtmoid sinusitis",20,82,
+P0150.2,"Septal Deviation,  Turbinate Hypertrophy, chronic ehtmoid sinusitis",3,2,
+P0151.1,"Acute Sinusitis, left caudal sept dev, right nasal obstruction",12,40,10
+P0151.2,"Acute Sinusitis, left caudal sept dev, right nasal obstruction",4,13,
+P0152.1,Asymptomatic Septal perf,13,32,9
+P0153.1,"CRS, Sept Dv Inferior Turbinate hypertrophy",19,82,16
+P0153.2,"CRS, Sept Dv Inferior Turbinate hypertrophy",,74,
+P0154.1,Nasal Congestion,14,30,11
+P0154.2,Nasal Congestion,3,18,
+P0155.1,2 surgeries spt Dev and Turb Hty,14,35,11
+P0156.1,"Septal deviation, turb HTY",16,83,
+P0157.1,"possible ENS, Total septectomy FESSx6",6,44,11
+P0158.1,"possible ENS, Total septectomy FESSx6",10,10,
+P0158.2,"possible ENS, Total septectomy FESSx6",4,,
+P0159.1,(ENS likely) Bilateral inferior turbinate reduction,20,17,20
+P0160.1,Septal perf,16,41,10
+P0161.1,"Polyps,Inf Turb,Sept Deviation, CRS",15,68,7
+P0162.1,"Turbinate HTY ,Sept devi, CRSwNP",15,64,10
+P0163.1,Septoplasty Inf Turb,20,88,27
+P0164.1,"Sept. dev, Inf turb, CRS",14,43,6
+P0164.2,"Sept. dev, Inf turb, CRS",,33,
+P0164.2,"Sept. dev, Inf turb, CRS",0,7,0
+P0165.1,ENS+ sept perf,12,89,22
+P0166.1,"Turb HTY ,Sept Deviation,  CRSwNP",10,69,8
+P0167.1,ens,0,61,12
+P0168.1,"Sinus, nasal valve blockage",6,19,7
+P0169.1,"CRSwNP, sept dev, Turb HTy",11,51,
+P0170.1,"Turb Hty,Sept Dev",12,26,6
+P0170.2,"Turb Hty,Sept Dev",2,6,
+P0171.1,Septal perf,18,69,14
+P0172.1,nasal obs. Pain,16,27,13
+P0173.1,ENS (but ENS6q=4),4,35,4
+P0175.1,ENS,13,41,14
+P0176.1,"CRS, smell loss",15,46,7
+P0178.1,ens,5,41,1
+P0179.1,"nasal obs., NNV",18,80,15
+P0180.1,ENS/das,19,42,1
+P0181.1,ENS/sept perf,20,53,15
+P0182.1,ENS,,,11
+P0183.1,nasal obstrction,4,31,13
+P0184.1,CRSwNP,0,12,1
+P0185.1,"nasal obs, PND",15,63,
+P0185.2,"nasal obs, PND",4,44,
+P0186.1,"NV, sept dev, turb hty",16,7,4
+P0188.1,nasal obs,3,4,2
+P0189.1,sep dev turb,6,14,5
+P0190.1,"septal deviation, Turb Hty",10,31,10
+P0191.1,septal perf,1,36,8
+P0192.1,septal perf,15,19,5
+P0193.1,septal perf,18,35,10
+P0194.1,septal perf,65,43,
+P0203.1,septal perf,45,22,
+P0204.1,ENS,50,39,13
+P0205.1,ens,64,41,17
+P0206.1,ens,,,18
+P0207.1,polyps,75,23,2
+P0209.1,"polyps, intermittent smell loss, sep dev, THY",40,11,
+P0210.1,nasal obstuction,80,37,9
+P0211.1,ENS,100,88,22
+P0211.1,ENS,20,74,22
+P0212.1,ENS,100,71,24
+P0213.1,ENS,70,40,21
+P0214.1,ENS,90,51,14
+P0215.1,Taste loss (ageusia),40,21,
+P0216.1,ENS,0,7,9
+P0217.1,ENS,65,55,18
+P0218.1,ENS,45,52,17
+P0219.1,ENS,70,41,17
+P0220.1,ENS,65,52,12
+P0221.1,ENS,50,24,15
+P0222.1,ENS (turb reduction in 2020),90,72,23
+P0223.1,ENS (turb red and septal dev repair in 2014),35,41,15
+P0224.1,ENS,10,31,23
+P0225.1,"ENS (dev septum repair, sinus sx)",100,84,30
+P0228.1,ENS,80,56,17
+P0229.1,ENS,55,57,19
+P0230.1,ENS,70,50,12
+P0232.1,ENS,40,30,14
+P0233.1,ENS,55,27,15
