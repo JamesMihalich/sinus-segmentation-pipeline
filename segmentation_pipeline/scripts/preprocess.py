@@ -61,7 +61,12 @@ def parse_args():
         "--padding",
         type=int,
         default=10,
-        help="Padding around bounding box",
+        help="Padding around bounding box (ignored if --no-crop)",
+    )
+    parser.add_argument(
+        "--no-crop",
+        action="store_true",
+        help="Disable cropping to mask bounding box (keep full volume)",
     )
     parser.add_argument(
         "--fix-headers",
@@ -133,6 +138,7 @@ def main():
         padding=args.padding,
         image_pattern=args.image_pattern,
         label_suffix=args.label_suffix,
+        crop=not args.no_crop,
     )
 
     logger.info(f"\nProcessing complete!")

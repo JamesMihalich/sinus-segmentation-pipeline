@@ -52,6 +52,7 @@ def process_nifti_pair_to_npz(
     window_level: float = -300.0,
     window_width: float = 1000.0,
     padding: int = 10,
+    crop: bool = True,
 ) -> Optional[Path]:
     """
     Process a NIfTI image-mask pair to cropped, windowed NPZ.
@@ -62,7 +63,8 @@ def process_nifti_pair_to_npz(
         output_path: Path for output NPZ file.
         window_level: CT window level.
         window_width: CT window width.
-        padding: Padding around bounding box.
+        padding: Padding around bounding box (ignored if crop=False).
+        crop: Whether to crop to mask bounding box.
 
     Returns:
         Output path if successful, None otherwise.
@@ -91,10 +93,14 @@ def process_nifti_pair_to_npz(
             logger.warning(f"Empty mask: {mask_path.name}")
             return None
 
-        # Crop to bounding box
-        cropped_image, cropped_mask, slices = crop_to_mask_bbox(
-            image_data, mask_data, padding=padding
-        )
+        # Crop to bounding box if enabled
+        if crop:
+            cropped_image, cropped_mask, slices = crop_to_mask_bbox(
+                image_data, mask_data, padding=padding
+            )
+        else:
+            cropped_image = image_data
+            cropped_mask = mask_data
 
         # Apply CT windowing
         windowed_image = apply_ct_window(
@@ -108,7 +114,10 @@ def process_nifti_pair_to_npz(
         # Log info
         logger.info(f"Processing {image_path.name}")
         logger.info(f"  Original: {image_data.shape}")
-        logger.info(f"  Cropped: {windowed_image.shape}")
+        if crop:
+            logger.info(f"  Cropped: {windowed_image.shape}")
+        else:
+            logger.info(f"  Shape: {windowed_image.shape} (no crop)")
 
         # Save
         save_npz(
@@ -133,6 +142,7 @@ def process_dataset_to_npz(
     padding: int = 10,
     image_pattern: str = "H*.nii",
     label_suffix: str = "_label",
+    crop: bool = True,
 ) -> List[Path]:
     """
     Process all image-mask pairs in a directory to NPZ format.
@@ -142,9 +152,10 @@ def process_dataset_to_npz(
         output_dir: Output directory for NPZ files.
         window_level: CT window level.
         window_width: CT window width.
-        padding: Padding around bounding box.
+        padding: Padding around bounding box (ignored if crop=False).
         image_pattern: Glob pattern for image files.
         label_suffix: Suffix for label files.
+        crop: Whether to crop to mask bounding box.
 
     Returns:
         List of successfully processed output paths.
@@ -158,9 +169,14 @@ def process_dataset_to_npz(
     images = [f for f in images if label_suffix not in f.name]
 
     logger.info(f"Output directory: {output_dir}")
-    logger.info(
-        f"Window: level={window_level}, width={window_width}, padding={padding}"
-    )
+    if crop:
+        logger.info(
+            f"Window: level={window_level}, width={window_width}, padding={padding}"
+        )
+    else:
+        logger.info(
+            f"Window: level={window_level}, width={window_width} (no crop)"
+        )
     logger.info(f"Found {len(images)} images to process")
 
     processed = []
@@ -185,6 +201,7 @@ def process_dataset_to_npz(
             window_level=window_level,
             window_width=window_width,
             padding=padding,
+            crop=crop,
         )
 
         if result:
