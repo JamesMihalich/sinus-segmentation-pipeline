@@ -201,9 +201,10 @@ class ResidualUnetSE3DEnhanced(nn.Module):
         self.dropout = nn.Dropout3d(p=dropout_rate) if dropout_rate > 0 else nn.Identity()
 
         # ============== Attention Gates ==============
-        self.att2 = AttentionGate3D(gate_channels=chs[3], skip_channels=chs[2])
-        self.att1 = AttentionGate3D(gate_channels=chs[2], skip_channels=chs[1])
-        self.att0 = AttentionGate3D(gate_channels=chs[1], skip_channels=chs[0])
+        # Gate channels match the upsampled decoder features (after up2/up1/up0)
+        self.att2 = AttentionGate3D(gate_channels=chs[2], skip_channels=chs[2])  # 128, 128
+        self.att1 = AttentionGate3D(gate_channels=chs[1], skip_channels=chs[1])  # 64, 64
+        self.att0 = AttentionGate3D(gate_channels=chs[0], skip_channels=chs[0])  # 32, 32
 
         # ============== Decoder ==============
         self.up2 = nn.ConvTranspose3d(chs[3], chs[2], kernel_size=2, stride=2)
