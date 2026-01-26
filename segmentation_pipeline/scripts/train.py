@@ -104,6 +104,13 @@ def parse_args():
         type=Path,
         help="Resume from checkpoint",
     )
+    parser.add_argument(
+        "--patch-size",
+        type=int,
+        nargs=3,
+        metavar=("D", "H", "W"),
+        help="Patch size as three integers (default: 224 224 256). Try 128 128 128 for lower GPU memory.",
+    )
 
     return parser.parse_args()
 
@@ -126,6 +133,9 @@ def main():
         config.training.batch_size = args.batch_size
     if args.lr:
         config.training.learning_rate = args.lr
+    if args.patch_size:
+        config.training.patch_size = tuple(args.patch_size)
+        logger.info(f"Using patch size: {config.training.patch_size}")
 
     # Validate data directory
     if not config.data_root or not config.data_root.exists():
