@@ -299,3 +299,28 @@ def compute_volume_stats(volume: np.ndarray) -> dict:
         "nonzero_count": int(np.count_nonzero(volume)),
         "nonzero_ratio": float(np.count_nonzero(volume) / volume.size),
     }
+
+
+def compute_class_distribution(label: np.ndarray) -> dict:
+    """
+    Compute class distribution for a binary segmentation label volume.
+
+    Args:
+        label: Binary 3D label array (0 = background, >0 = positive class).
+
+    Returns:
+        Dictionary with class counts, percentages, and volume info.
+    """
+    total_voxels = label.size
+    positive_voxels = int(np.count_nonzero(label))
+    negative_voxels = total_voxels - positive_voxels
+
+    return {
+        "shape": label.shape,
+        "total_voxels": total_voxels,
+        "positive_voxels": positive_voxels,
+        "negative_voxels": negative_voxels,
+        "positive_percentage": 100.0 * positive_voxels / total_voxels,
+        "negative_percentage": 100.0 * negative_voxels / total_voxels,
+        "class_ratio": positive_voxels / negative_voxels if negative_voxels > 0 else float("inf"),
+    }
