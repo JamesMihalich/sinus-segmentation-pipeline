@@ -9,6 +9,24 @@ from typing import Literal, Tuple
 import torch
 from torch import nn
 
+class SEBlock3d(nn.Module):
+    """Squeeze-and-Excitation block for 3D."""
+    def __init__(self, channel, reduction=16):
+        super().__init__()
+        self.avg_pool = nn.AdaptiveAvgPool3d(1)
+        self.fc = nn.Sequential(
+            nn.Linear(channel, channel // reduction, bias=False),
+            nn.ReLU(inplace=True),
+            nn.Linear(channel // reduction, channel, bias=False),
+            nn.Sigmoid()
+        )
+
+    def forward(self, x):
+        b, c, _, _, _ = x.size()
+        y = self.avg_pool(x).view(b, c)
+        y = self.fc(y).view(b, c, 1, 1, 1)
+        return x * y.expand_as(x)
+
 
 class ConvBlock3D(nn.Module):
     """
@@ -33,6 +51,95 @@ class ConvBlock3D(nn.Module):
         x = self.relu(x)
         x = self.pool(x)
         return x
+    
+class BBoxPoolingSERegressor3D(nn.Module):
+    def __init__(
+        self,
+        input_size: Tuple[int, int, int] = (128, 128, 128),
+        in_channels: int = 1,
+        base_channels: int = 32,
+        dropout: float = 0.5,
+    ) -> None:
+        super().__init__()
+
+        self.input_size = input_size
+        c = base_channels
+
+        # --- Feature Extractor (Same as before) ---
+        self.features = nn.Sequential(
+            # Block 1: 1 -> 32
+            nn.Conv3d(in_channels, c, 3, padding=1),
+            nn.BatchNorm3d(c), nn.ReLU(inplace=True),
+            nn.MaxPool3d(2, 2),
+            
+            # Block 2: 32 -> 64
+            nn.Conv3d(c, c * 2, 3, padding=1),
+            nn.BatchNorm3d(c * 2), nn.ReLU(inplace=True),
+            nn.MaxPool3d(2, 2),
+            
+            # Block 3: 64 -> 128
+            nn.Conv3d(c * 2, c * 4, 3, padding=1),
+            nn.BatchNorm3d(c * 4), nn.ReLU(inplace=True),
+            nn.MaxPool3d(2, 2),
+            
+            # Block 4: 128 -> 256
+            nn.Conv3d(c * 4, c * 8, 3, padding=1),
+            nn.BatchNorm3d(c * 8), nn.ReLU(inplace=True),
+            nn.MaxPool3d(2, 2),
+            
+            # Block 5: 256 -> 512
+            nn.Conv3d(c * 8, c * 16, 3, padding=1),
+            nn.BatchNorm3d(c * 16), nn.ReLU(inplace=True),
+            nn.MaxPool3d(2, 2),
+        )
+
+        # --- The "Smoother" Head ---
+        
+        # 1. Adaptive Pooling
+        # Instead of flattening 4x4x4 immediately, we pool to 2x2x2.
+        # This keeps coarse spatial info (left/right, up/down, deep/shallow)
+        # but reduces input dim from 32,768 -> 4,096.
+        self.adaptive_pool = nn.AdaptiveMaxPool3d((2, 2, 2))
+        self.se_block = SEBlock3d(c * 16)
+        pool_flat_size = (c * 16) * 2 * 2 * 2  # 512 * 8 = 4096
+
+        # 2. Gradual MLP
+        # Step down: 4096 -> 1024 -> 256 -> 64 -> 6
+        # Each step compresses by 4x, rather than the previous 32x.
+        self.regressor = nn.Sequential(
+            nn.Flatten(),
+            
+            # Layer 1: 4096 -> 1024
+            nn.Linear(pool_flat_size, 1024),
+
+            nn.ReLU(inplace=True),
+            nn.Dropout(dropout),
+            
+            # Layer 2: 1024 -> 256
+            nn.Linear(1024, 256),
+            nn.ReLU(inplace=True),
+            nn.Dropout(dropout / 2), # Lower dropout deeper in network
+            
+            # Layer 3: 256 -> 64
+            nn.Linear(256, 64),
+            nn.ReLU(inplace=True),
+            
+            # Output: 64 -> 6
+            nn.Linear(64, 6),
+            nn.Sigmoid(), 
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.features(x)       # Shape: (B, 512, 4, 4, 4)
+        x = self.se_block(x)
+        x = self.adaptive_pool(x)  # Shape: (B, 512, 2, 2, 2)
+        bbox = self.regressor(x)   # Shape: (B, 6)
+        return bbox
+    
+    def get_num_parameters(self) -> int:
+        return sum(p.numel() for p in self.parameters() if p.requires_grad)
+
+
 
 class BBoxRegressor3D(nn.Module):
     """
@@ -68,6 +175,7 @@ class BBoxRegressor3D(nn.Module):
 
         self.input_size = input_size
         c = base_channels  # Base channels
+
 
         # Convolutional feature extractor
         # Each block: Conv3d -> BatchNorm -> ReLU -> MaxPool (2x downsample)
@@ -135,9 +243,6 @@ class BBoxRegressor3D(nn.Module):
     def get_num_parameters(self) -> int:
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
     
-import torch
-import torch.nn as nn
-from typing import Tuple
 
 class BBoxPoolingRegressor3D(nn.Module):
     def __init__(
@@ -310,5 +415,7 @@ def create_regressor(
         return BBoxRegressorLite(**kwargs)
     elif variant == "pooling":
         return BBoxPoolingRegressor3D(**kwargs)
+    elif variant == "se+pooling":
+        return BBoxPoolingSERegressor3D(**kwargs)
     else:
         raise ValueError(f"Unknown variant: {variant}")

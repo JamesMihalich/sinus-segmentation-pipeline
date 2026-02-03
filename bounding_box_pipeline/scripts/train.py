@@ -81,8 +81,8 @@ def parse_args():
     parser.add_argument(
         "--model",
         type=str,
-        choices=["standard", "lite", "pooling"],
-        default="pooling",
+        choices=["standard", "lite", "pooling", "se+pooling"],
+        default="se+pooling",
         help="Model variant to use (default: pooling)",
     )
     parser.add_argument(

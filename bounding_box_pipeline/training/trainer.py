@@ -43,7 +43,7 @@ class Trainer:
         learning_rate: float = 1e-4,
         weight_decay: float = 0.0,
         scheduler_factor: float = 0.5,
-        scheduler_patience: int = 3,
+        scheduler_patience: int = 8,
         scheduler_min_lr: float = 1e-6,
     ) -> None:
         """
