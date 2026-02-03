@@ -19,7 +19,12 @@ from torch.utils.data import DataLoader
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from bounding_box_pipeline.configs import Config
-from bounding_box_pipeline.data.datasets import LocalizationDataset, create_data_splits, get_dataset_files
+from bounding_box_pipeline.data.datasets import (
+    LocalizationDataset,
+    create_data_splits,
+    create_data_splits_from_manifest,
+    get_dataset_files,
+)
 from bounding_box_pipeline.models import BBoxRegressor3D, BBoxRegressorResidual, create_regressor
 from bounding_box_pipeline.training import Trainer
 
@@ -80,6 +85,11 @@ def parse_args():
         default="residual",
         help="Model variant to use (default: residual)",
     )
+    parser.add_argument(
+        "--split-manifest",
+        type=Path,
+        help="Path to CSV manifest file defining train/val/test splits (columns: filename, split, patient_id)",
+    )
 
     return parser.parse_args()
 
@@ -121,12 +131,19 @@ def main():
     logger.info(f"Found {len(files)} dataset files")
 
     # Split data
-    train_files, val_files = create_data_splits(
-        files,
-        train_ratio=config.training.train_ratio,
-        val_ratio=config.training.val_ratio,
-        seed=config.training.split_seed,
-    )
+    if args.split_manifest:
+        logger.info(f"Using split manifest: {args.split_manifest}")
+        train_files, val_files = create_data_splits_from_manifest(
+            files,
+            args.split_manifest,
+        )
+    else:
+        train_files, val_files = create_data_splits(
+            files,
+            train_ratio=config.training.train_ratio,
+            val_ratio=config.training.val_ratio,
+            seed=config.training.split_seed,
+        )
 
     logger.info(f"Train: {len(train_files)}, Val: {len(val_files)}")
 

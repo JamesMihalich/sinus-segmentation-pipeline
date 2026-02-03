@@ -4,6 +4,7 @@ PyTorch dataset for bounding box localization.
 Loads NPZ files containing image-bbox pairs for training.
 """
 
+import csv
 import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
@@ -250,3 +251,76 @@ def get_dataset_files(
     """
     data_dir = Path(data_dir)
     return sorted(data_dir.glob(pattern))
+
+
+def create_data_splits_from_manifest(
+    file_paths: List[Path],
+    manifest_path: Union[str, Path],
+    include_test: bool = False,
+) -> Tuple[List[Path], List[Path]]:
+    """
+    Split file paths into train/val sets based on a manifest CSV.
+
+    The manifest CSV should have columns: filename, split, patient_id
+    where split is one of: 'train', 'validation', 'test (held-out)'
+
+    Args:
+        file_paths: List of all file paths from the data directory.
+        manifest_path: Path to the manifest CSV file.
+        include_test: If True, include test files in validation set.
+
+    Returns:
+        Tuple of (train_files, val_files).
+    """
+    manifest_path = Path(manifest_path)
+
+    # Read manifest into a dict mapping patient_id -> split
+    patient_splits: Dict[str, str] = {}
+    with open(manifest_path, "r") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            patient_id = row["patient_id"]
+            split = row["split"]
+            patient_splits[patient_id] = split
+
+    logger.info(f"Loaded manifest with {len(patient_splits)} patients")
+
+    # Build lookup from available files
+    file_map: Dict[str, Path] = {}
+    for fp in file_paths:
+        # Extract patient ID from filename (e.g., H0001.npz -> H0001)
+        patient_id = fp.stem
+        file_map[patient_id] = fp
+
+    train_files: List[Path] = []
+    val_files: List[Path] = []
+    missing_files: List[str] = []
+
+    for patient_id, split in patient_splits.items():
+        if patient_id not in file_map:
+            missing_files.append(patient_id)
+            continue
+
+        fp = file_map[patient_id]
+        if split == "train":
+            train_files.append(fp)
+        elif split == "validation":
+            val_files.append(fp)
+        elif split == "test (held-out)":
+            if include_test:
+                val_files.append(fp)
+            # Otherwise skip test files during training
+        else:
+            logger.warning(f"Unknown split '{split}' for patient {patient_id}")
+
+    if missing_files:
+        logger.warning(
+            f"{len(missing_files)} patients in manifest not found in data directory: "
+            f"{missing_files[:5]}{'...' if len(missing_files) > 5 else ''}"
+        )
+
+    logger.info(
+        f"Split from manifest: {len(train_files)} train, {len(val_files)} val"
+    )
+
+    return train_files, val_files
