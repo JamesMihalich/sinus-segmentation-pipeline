@@ -25,7 +25,7 @@ from bounding_box_pipeline.data.datasets import (
     create_data_splits_from_manifest,
     get_dataset_files,
 )
-from bounding_box_pipeline.models import BBoxRegressor3D, BBoxRegressorResidual, create_regressor
+from bounding_box_pipeline.models import create_regressor
 from bounding_box_pipeline.training import Trainer
 
 logging.basicConfig(
@@ -81,9 +81,9 @@ def parse_args():
     parser.add_argument(
         "--model",
         type=str,
-        choices=["standard", "residual", "lite"],
-        default="residual",
-        help="Model variant to use (default: residual)",
+        choices=["standard", "lite", "pooling"],
+        default="pooling",
+        help="Model variant to use (default: pooling)",
     )
     parser.add_argument(
         "--split-manifest",
