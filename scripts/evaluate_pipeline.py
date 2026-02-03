@@ -321,7 +321,7 @@ def parse_args():
         "--spacing",
         type=float,
         nargs=3,
-        default=[1.0, 1.0, 1.0],
+        default=[0.33, 0.33, 0.33],
         help="Voxel spacing for distance metrics (z, y, x)",
     )
     parser.add_argument(
