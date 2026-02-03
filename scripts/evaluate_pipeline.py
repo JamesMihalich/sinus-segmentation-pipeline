@@ -295,9 +295,9 @@ def parse_args():
     parser.add_argument(
         "--seg-model",
         type=str,
-        choices=["standard", "enhanced"],
+        choices=["standard", "additive", "enhanced"],
         default="standard",
-        help="Segmentation model variant",
+        help="Segmentation model variant (standard=concat skips, additive=add skips)",
     )
     parser.add_argument(
         "--bbox-window-level",
@@ -379,8 +379,10 @@ def main():
     logger.info(f"Loading segmentation model ({args.seg_model})...")
     if args.seg_model == "enhanced":
         seg_model = create_enhanced_unet()
+    elif args.seg_model == "additive":
+        seg_model = create_unet("additive")
     else:
-        seg_model = create_unet()
+        seg_model = create_unet("standard")
 
     seg_predictor = VolumePredictor.from_checkpoint(
         model=seg_model,
