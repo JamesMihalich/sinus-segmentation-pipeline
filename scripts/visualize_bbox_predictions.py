@@ -7,12 +7,26 @@ Generates visualizations in all 3 planes (axial, coronal, sagittal) showing:
 - Predicted bounding box (red)
 - Ground truth bounding box (green)
 
+Supports both NIfTI and NPZ input formats:
+- NPZ mode (recommended): Uses preprocessed 128³ volumes - shows exactly what model sees
+- NIfTI mode: Uses original volumes with on-the-fly preprocessing
+
 Usage:
+    # Using NPZ files (recommended for debugging)
+    python scripts/visualize_bbox_predictions.py \
+        --bbox-checkpoint bbox_model.pt \
+        --data-dir /path/to/npz \
+        --split-manifest manifest.csv \
+        --output-dir ./bbox_visualizations \
+        --input-format npz
+
+    # Using NIfTI files
     python scripts/visualize_bbox_predictions.py \
         --bbox-checkpoint bbox_model.pt \
         --data-dir /path/to/nifti \
         --split-manifest manifest.csv \
-        --output-dir ./bbox_visualizations
+        --output-dir ./bbox_visualizations \
+        --input-format nifti
 """
 
 import argparse
@@ -47,6 +61,14 @@ def load_nifti(path: Path) -> np.ndarray:
     return nii.get_fdata()
 
 
+def load_npz(path: Path) -> Tuple[np.ndarray, np.ndarray]:
+    """Load NPZ file and return (image, label_bbox)."""
+    data = np.load(path)
+    image = data["image"]
+    label = data["label"]  # normalized bbox coordinates
+    return image, label
+
+
 def load_test_patients_from_manifest(manifest_path: Path) -> List[str]:
     """Load test patient IDs from manifest CSV."""
     test_patients = []
@@ -61,26 +83,37 @@ def load_test_patients_from_manifest(manifest_path: Path) -> List[str]:
 def find_patient_files(
     patient_id: str,
     data_dir: Path,
+    input_format: str = "nifti",
 ) -> Tuple[Optional[Path], Optional[Path]]:
     """Find image and label files for a patient."""
-    image_patterns = [f"{patient_id}.nii", f"{patient_id}.nii.gz"]
-    label_patterns = [f"{patient_id}_label.nii", f"{patient_id}_label.nii.gz"]
+    if input_format == "npz":
+        # NPZ files contain both image and label
+        npz_patterns = [f"{patient_id}.npz"]
+        for pattern in npz_patterns:
+            candidate = data_dir / pattern
+            if candidate.exists():
+                return candidate, candidate  # Same file for both
+        return None, None
+    else:
+        # NIfTI format - separate files
+        image_patterns = [f"{patient_id}.nii", f"{patient_id}.nii.gz"]
+        label_patterns = [f"{patient_id}_label.nii", f"{patient_id}_label.nii.gz"]
 
-    image_path = None
-    for pattern in image_patterns:
-        candidate = data_dir / pattern
-        if candidate.exists():
-            image_path = candidate
-            break
+        image_path = None
+        for pattern in image_patterns:
+            candidate = data_dir / pattern
+            if candidate.exists():
+                image_path = candidate
+                break
 
-    label_path = None
-    for pattern in label_patterns:
-        candidate = data_dir / pattern
-        if candidate.exists():
-            label_path = candidate
-            break
+        label_path = None
+        for pattern in label_patterns:
+            candidate = data_dir / pattern
+            if candidate.exists():
+                label_path = candidate
+                break
 
-    return image_path, label_path
+        return image_path, label_path
 
 
 def get_gt_bbox(label_volume: np.ndarray) -> Optional[np.ndarray]:
@@ -140,16 +173,22 @@ def create_visualization(
     gt_bbox: Optional[np.ndarray],
     patient_id: str,
     output_dir: Path,
-    window_level: float = 600,
-    window_width: float = 1250,
+    window_level: Optional[float] = 600,
+    window_width: Optional[float] = 1250,
 ):
     """Create visualization with all 3 planes at multiple slices."""
 
-    # Apply windowing for display
-    lower = window_level - window_width / 2
-    upper = window_level + window_width / 2
-    display_vol = np.clip(volume, lower, upper)
-    display_vol = (display_vol - lower) / window_width
+    # Apply windowing for display (skip if None - data already preprocessed)
+    if window_level is not None and window_width is not None:
+        lower = window_level - window_width / 2
+        upper = window_level + window_width / 2
+        display_vol = np.clip(volume, lower, upper)
+        display_vol = (display_vol - lower) / window_width
+    else:
+        # Data already preprocessed (NPZ mode) - normalize to [0,1]
+        display_vol = volume.astype(np.float32)
+        if display_vol.max() > 1:
+            display_vol = display_vol / 255.0
 
     D, H, W = volume.shape
 
@@ -337,6 +376,13 @@ def parse_args():
         default="cuda",
         help="Device for inference",
     )
+    parser.add_argument(
+        "--input-format",
+        type=str,
+        choices=["nifti", "npz"],
+        default="npz",
+        help="Input data format: 'npz' (preprocessed 128³) or 'nifti' (original volumes)",
+    )
 
     return parser.parse_args()
 
@@ -376,25 +422,61 @@ def main():
     for patient_id in test_patients:
         logger.info(f"Processing {patient_id}...")
 
-        image_path, label_path = find_patient_files(patient_id, args.data_dir)
+        image_path, label_path = find_patient_files(
+            patient_id, args.data_dir, args.input_format
+        )
 
         if image_path is None:
-            logger.warning(f"Image not found for {patient_id}")
+            logger.warning(f"Data not found for {patient_id}")
             continue
 
-        # Load volume
-        volume = load_nifti(image_path)
+        if args.input_format == "npz":
+            # NPZ mode: use preprocessed data directly
+            image, gt_normalized_bbox = load_npz(image_path)
+            volume_shape = image.shape  # 128³
 
-        # Load ground truth if available
-        gt_bbox = None
-        if label_path is not None:
-            label_volume = load_nifti(label_path)
-            gt_bbox = get_gt_bbox(label_volume)
+            # Denormalize GT bbox to pixel coordinates in 128³ space
+            gt_bbox = denormalize_bbox(gt_normalized_bbox, volume_shape)
 
-        # Predict bounding box
-        pred_bbox, normalized_bbox = bbox_predictor.predict_single(
-            volume, return_normalized=True
-        )
+            # For NPZ, we need to run inference without additional preprocessing
+            # Normalize image to [0,1] as model expects
+            image_normalized = image.astype(np.float32)
+            if image_normalized.max() > 1:
+                image_normalized = image_normalized / 255.0
+
+            # Run model directly (image is already correct size)
+            import torch
+            input_tensor = (
+                torch.from_numpy(image_normalized)
+                .unsqueeze(0).unsqueeze(0)
+                .to(bbox_predictor.device)
+            )
+            with torch.no_grad():
+                pred_normalized_bbox = bbox_predictor.model(input_tensor)
+            pred_normalized_bbox = pred_normalized_bbox.squeeze().cpu().numpy()
+
+            # Denormalize prediction to 128³ space
+            pred_bbox = denormalize_bbox(pred_normalized_bbox, volume_shape)
+
+            # Use the preprocessed image for visualization (already windowed)
+            display_volume = image
+
+        else:
+            # NIfTI mode: use original volumes
+            volume = load_nifti(image_path)
+
+            # Load ground truth if available
+            gt_bbox = None
+            if label_path is not None:
+                label_volume = load_nifti(label_path)
+                gt_bbox = get_gt_bbox(label_volume)
+
+            # Predict bounding box (includes preprocessing)
+            pred_bbox, pred_normalized_bbox = bbox_predictor.predict_single(
+                volume, return_normalized=True
+            )
+
+            display_volume = volume
 
         # Compute metrics if GT available
         metrics = {"patient_id": patient_id}
@@ -406,14 +488,15 @@ def main():
         all_metrics.append(metrics)
 
         # Create visualization
+        # For NPZ, skip windowing since data is already preprocessed
         output_path = create_visualization(
-            volume=volume,
+            volume=display_volume,
             pred_bbox=pred_bbox,
             gt_bbox=gt_bbox,
             patient_id=patient_id,
             output_dir=args.output_dir,
-            window_level=args.window_level,
-            window_width=args.window_width,
+            window_level=args.window_level if args.input_format == "nifti" else None,
+            window_width=args.window_width if args.input_format == "nifti" else None,
         )
         logger.info(f"  Saved: {output_path}")
 

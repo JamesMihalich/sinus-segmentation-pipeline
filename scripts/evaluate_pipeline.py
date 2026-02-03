@@ -56,6 +56,16 @@ def load_nifti(path: Path) -> Tuple[np.ndarray, np.ndarray]:
     return nii.get_fdata(), nii.affine
 
 
+def load_volume_npz(path: Path) -> np.ndarray:
+    """Load volume from NPZ file."""
+    data = np.load(path)
+    for key in ["image", "volume", "data"]:
+        if key in data:
+            return data[key]
+    # Fallback to first array
+    return data[data.files[0]]
+
+
 def load_test_patients_from_manifest(manifest_path: Path) -> List[str]:
     """Load test patient IDs from manifest CSV."""
     test_patients = []
@@ -71,19 +81,34 @@ def find_patient_files(
     patient_id: str,
     data_dir: Path,
     gt_dir: Path,
+    input_format: str = "nifti",
 ) -> Tuple[Optional[Path], Optional[Path]]:
     """Find image and ground truth files for a patient."""
-    # Common naming patterns
-    image_patterns = [
-        f"{patient_id}.nii",
-        f"{patient_id}.nii.gz",
-    ]
-    gt_patterns = [
-        f"{patient_id}_label.nii",
-        f"{patient_id}_label.nii.gz",
-        f"{patient_id}.npz",
-        f"{patient_id}_cropped_mask.npz",
-    ]
+    if input_format == "npz":
+        # NPZ format - look for image and label NPZ files
+        image_patterns = [
+            f"{patient_id}.npz",
+            f"{patient_id}_image.npz",
+            f"{patient_id}_cropped_img.npz",
+        ]
+        gt_patterns = [
+            f"{patient_id}_label.npz",
+            f"{patient_id}_cropped_mask.npz",
+            f"{patient_id}_mask.npz",
+            f"{patient_id}.npz",  # might contain both image and label
+        ]
+    else:
+        # NIfTI format
+        image_patterns = [
+            f"{patient_id}.nii",
+            f"{patient_id}.nii.gz",
+        ]
+        gt_patterns = [
+            f"{patient_id}_label.nii",
+            f"{patient_id}_label.nii.gz",
+            f"{patient_id}.npz",
+            f"{patient_id}_cropped_mask.npz",
+        ]
 
     image_path = None
     for pattern in image_patterns:
@@ -174,6 +199,7 @@ def run_pipeline(
     gt_path: Path,
     bbox_margin: float = 0.05,
     spacing: Tuple[float, float, float] = (1.0, 1.0, 1.0),
+    input_format: str = "nifti",
 ) -> Dict:
     """
     Run end-to-end pipeline on a single patient.
@@ -181,8 +207,11 @@ def run_pipeline(
     Returns:
         Dictionary with metrics and intermediate results.
     """
-    # Load image
-    volume, affine = load_nifti(image_path)
+    # Load image based on format
+    if input_format == "npz":
+        volume = load_volume_npz(image_path)
+    else:
+        volume, affine = load_nifti(image_path)
     original_shape = volume.shape
 
     # Step 1: Predict bounding box
@@ -263,13 +292,20 @@ def parse_args():
         "--data-dir",
         type=Path,
         required=True,
-        help="Directory containing NIfTI image files",
+        help="Directory containing image files (NIfTI or NPZ)",
     )
     parser.add_argument(
         "--gt-dir",
         type=Path,
         required=True,
-        help="Directory containing ground truth files",
+        help="Directory containing ground truth files (NIfTI or NPZ)",
+    )
+    parser.add_argument(
+        "--input-format",
+        type=str,
+        choices=["nifti", "npz"],
+        default="nifti",
+        help="Input data format: 'nifti' or 'npz' (full-size resampled volumes)",
     )
     parser.add_argument(
         "--split-manifest",
@@ -394,7 +430,7 @@ def main():
     results = []
     for patient_id in tqdm(test_patients, desc="Processing patients"):
         image_path, gt_path = find_patient_files(
-            patient_id, args.data_dir, args.gt_dir
+            patient_id, args.data_dir, args.gt_dir, args.input_format
         )
 
         if image_path is None:
@@ -412,6 +448,7 @@ def main():
                 gt_path=gt_path,
                 bbox_margin=args.bbox_margin,
                 spacing=tuple(args.spacing),
+                input_format=args.input_format,
             )
 
             metrics = result["metrics"]
